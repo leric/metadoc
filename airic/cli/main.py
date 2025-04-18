@@ -6,8 +6,11 @@ import typer
 from pathlib import Path
 from rich.console import Console
 from rich import print as rprint
+from typing import Optional
 
 from airic import __version__
+from airic.core.workspace import Workspace, WorkspaceContext, workspace_context, WorkspaceValidationError
+from airic.core.init import initialize_workspace
 
 app = typer.Typer(
     name="airic",
@@ -40,6 +43,15 @@ def init(
     directory: Path = typer.Argument(
         None, help="Directory to initialize as an Airic workspace"
     ),
+    name: Optional[str] = typer.Option(
+        None, "--name", "-n", help="Name for the workspace"
+    ),
+    description: Optional[str] = typer.Option(
+        None, "--description", "-d", help="Description for the workspace"
+    ),
+    force: bool = typer.Option(
+        False, "--force", "-f", help="Force reinitialization if workspace already exists"
+    ),
 ):
     """
     Initialize a new Airic workspace in the specified directory.
@@ -53,26 +65,45 @@ def init(
         # Create directory if it doesn't exist
         directory.mkdir(parents=True, exist_ok=True)
 
-    # Create .airic directory and subdirectories
-    airic_dir = directory / ".airic"
-    airic_dir.mkdir(exist_ok=True)
+    # Prepare custom configuration
+    config = {}
+    if name:
+        config["name"] = name
+    if description:
+        config["description"] = description
     
-    meta_dir = airic_dir / "meta"
-    meta_dir.mkdir(exist_ok=True)
+    # Check if already initialized
+    workspace = Workspace(directory)
+    if workspace.is_initialized() and not force:
+        console.print(f"⚠️  [yellow]Workspace in [bold]{directory}[/bold] is already initialized.[/yellow]")
+        if typer.confirm("Do you want to reinitialize it?", default=False):
+            console.print("Reinitializing workspace...")
+        else:
+            console.print("Aborting.")
+            return
     
-    agents_dir = meta_dir / "agents"
-    agents_dir.mkdir(exist_ok=True)
+    # Initialize the workspace using the enhanced initialization logic
+    console.print(f"Initializing Airic workspace in [bold]{directory}[/bold]...")
+    success, error_messages = initialize_workspace(directory, config)
     
-    doctypes_dir = meta_dir / "doctypes"
-    doctypes_dir.mkdir(exist_ok=True)
+    if not success:
+        console.print(f"❌ [bold red]Failed to initialize workspace[/bold red]")
+        for error in error_messages:
+            console.print(f"  - {error}")
+        raise typer.Exit(code=1)
     
-    workflows_dir = meta_dir / "workflows"
-    workflows_dir.mkdir(exist_ok=True)
+    # Load the workspace to get config for display
+    workspace = Workspace(directory)
     
-    history_dir = airic_dir / "history"
-    history_dir.mkdir(exist_ok=True)
-    
+    # Display results
     console.print(f"✅ Initialized Airic workspace in [bold]{directory}[/bold]")
+    
+    # Show configuration details
+    console.print("\nWorkspace Configuration:")
+    console.print(f"  Name: [bold]{workspace.config.get('name')}[/bold]")
+    console.print(f"  Description: {workspace.config.get('description')}")
+    console.print(f"  Version: {workspace.config.get('version')}")
+    
     console.print("\nDirectory structure created:")
     console.print("  .airic/")
     console.print("  ├── meta/")
@@ -81,16 +112,34 @@ def init(
     console.print("  │   └── workflows/")
     console.print("  └── history/")
     
-    # Create a basic README.md if it doesn't exist
-    readme_path = directory / "README.md"
-    if not readme_path.exists():
-        with open(readme_path, "w") as f:
-            f.write("# Airic Workspace\n\n")
-            f.write("This is an Airic workspace for document-driven AI collaboration.\n")
-        console.print("\n📝 Created basic README.md")
+    # Show information about templates
+    console.print("\nCreated template files:")
+    console.print("  agents/default.md")
+    console.print("  agents/writer.md")
+    console.print("  doctypes/meeting_notes.md")
+    console.print("  doctypes/brainstorming.md")
+    console.print("  workflows/document_review.md")
 
     console.print("\n🎉 Initialization complete! Start by creating documents with your favorite Markdown editor.")
     console.print("   Then use 'airic open <document>' to begin working with your AI partner.")
+
+
+@app.command()
+def check():
+    """
+    Check if the current directory is within a valid Airic workspace.
+    """
+    try:
+        with workspace_context() as workspace:
+            console.print(f"✅ Found valid Airic workspace at: [bold]{workspace.root_path}[/bold]")
+            console.print(f"\nWorkspace name: [bold]{workspace.config.get('name')}[/bold]")
+            console.print(f"Description: {workspace.config.get('description')}")
+            console.print(f"Version: {workspace.config.get('version')}")
+            if created_at := workspace.config.get('created_at'):
+                console.print(f"Created at: {created_at}")
+    except WorkspaceValidationError as e:
+        console.print(f"❌ [bold red]Error:[/bold red] {str(e)}")
+        raise typer.Exit(code=1)
 
 
 def main():
