@@ -1,0 +1,91 @@
+{
+  "meta": {
+    "generatedAt": "2025-04-18T15:48:51.989Z",
+    "tasksAnalyzed": 10,
+    "thresholdScore": 5,
+    "projectName": "AiricCLI",
+    "usedResearch": true
+  },
+  "complexityAnalysis": [
+    {
+      "taskId": 1,
+      "taskTitle": "Setup Project Structure and Workspace Initialization",
+      "complexityScore": 6,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the process of setting up a Python project structure, implementing the 'airic init' command, creating required directories, ensuring workspace detection, and integrating Typer for CLI. Include subtasks for best practices in Python packaging and error handling.",
+      "reasoning": "This task involves standard but multi-step setup: defining a Python package structure, implementing CLI commands, and ensuring workspace detection. While not algorithmically complex, it requires attention to best practices in Python packaging, directory management, and CLI integration, making it moderately complex.[6][9]"
+    },
+    {
+      "taskId": 2,
+      "taskTitle": "Implement Interactive CLI with Rich Formatting",
+      "complexityScore": 8,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "List the steps to implement a REPL interface using prompt-toolkit, add command history, differentiate command vs. free text input, integrate Rich for output formatting, implement Markdown rendering and syntax highlighting, and create a dynamic status bar.",
+      "reasoning": "Building a robust interactive CLI with REPL features, command parsing, history, and rich formatting requires integrating multiple libraries and handling user interaction edge cases. The need for Markdown rendering, syntax highlighting, and a dynamic status bar increases both cognitive and structural complexity.[2][4]"
+    },
+    {
+      "taskId": 3,
+      "taskTitle": "Implement Markdown Parsing and WikiLink Detection",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Detail the steps to parse Markdown files, extract YAML frontmatter, detect WikiLinks, extract metadata fields, and implement robust error handling for malformed input.",
+      "reasoning": "Parsing Markdown with YAML frontmatter and custom WikiLink syntax involves handling diverse input formats and potential errors. Implementing reliable metadata extraction and error handling adds to the complexity, though leveraging existing libraries can help manage it.[3][4]"
+    },
+    {
+      "taskId": 4,
+      "taskTitle": "Implement Document Navigation and Management",
+      "complexityScore": 8,
+      "recommendedSubtasks": 7,
+      "expansionPrompt": "Enumerate the steps to implement the /open command, support path and WikiLink navigation, add tab completion, handle document reloading and creation, update the status bar, and set default documents.",
+      "reasoning": "This task requires integrating navigation logic, tab completion, document creation, and status updates, all while ensuring smooth user experience. Handling various navigation scenarios and updating UI components increases both cognitive and temporal complexity.[2][7]"
+    },
+    {
+      "taskId": 5,
+      "taskTitle": "Implement Context Loading Mechanism",
+      "complexityScore": 8,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the process of loading document content, metadata, conversation history, related document names, tracking recently active documents, and designing the context structure for AI consumption.",
+      "reasoning": "Context loading requires efficient data retrieval, tracking document relationships, and designing a structure suitable for AI input. Managing dependencies and ensuring performance make this a complex, multi-faceted task.[2][8]"
+    },
+    {
+      "taskId": 6,
+      "taskTitle": "Implement History Storage with SQLite",
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "List the steps to design the SQLite schema, implement functions to store and retrieve conversation history, handle metadata, and ensure efficient querying for context loading.",
+      "reasoning": "While implementing SQLite storage is straightforward, designing an efficient schema and integrating it with the rest of the system for fast querying and robust metadata handling adds moderate complexity.[3][4]"
+    },
+    {
+      "taskId": 7,
+      "taskTitle": "Implement Definition Documents Processing",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Detail the steps to process Agent, DocType, and Workflow definition files, extract relevant metadata, build a registry system, and implement error handling for missing or malformed files.",
+      "reasoning": "Processing multiple types of definition documents and building a registry for efficient access involves handling diverse file formats, metadata extraction, and robust error handling, increasing both essential and accidental complexity.[2][3]"
+    },
+    {
+      "taskId": 8,
+      "taskTitle": "Implement AI Interaction with Google ADK",
+      "complexityScore": 9,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Break down the steps to send requests to Google ADK, package context, handle and format AI responses, persist conversations, and implement error and rate limit handling.",
+      "reasoning": "Integrating with an external AI API, packaging dynamic context, formatting responses, and ensuring robust error and rate limit handling is highly complex due to external dependencies, asynchronous operations, and the need for reliable persistence.[2][8]"
+    },
+    {
+      "taskId": 9,
+      "taskTitle": "Implement Metadata-Driven AI Behavior",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "List the steps to read document metadata, load agent and doctype definitions, combine metadata for AI configuration, implement default behaviors, and handle transitions between documents.",
+      "reasoning": "Driving AI behavior based on dynamic metadata requires integrating multiple subsystems, handling edge cases, and ensuring smooth transitions, which adds to both structural and cognitive complexity.[2][3]"
+    },
+    {
+      "taskId": 10,
+      "taskTitle": "Implement Error Handling and Documentation",
+      "complexityScore": 6,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Enumerate the steps to implement comprehensive error handling, create clear error messages, add a /help command, write user documentation, and ensure code comments and best practices.",
+      "reasoning": "Comprehensive error handling and documentation are essential for maintainability and user experience. While not algorithmically complex, covering all failure scenarios and producing clear documentation requires thoroughness and attention to detail.[4][10]"
+    }
+  ]
+}

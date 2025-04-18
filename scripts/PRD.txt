@@ -1,0 +1,96 @@
+# Product Requirements Document: Airic CLI MVP
+
+## 1. Introduction / Overview
+
+*   **Product Goal:** Create Airic, a personal AI work partner that enables closer, more natural human-AI collaboration through innovative concepts like "Meta Documents" and "Guided Problem Decomposition".
+*   **MVP Goal:** Validate the core "Everything is Document" mechanism using a CLI. Test the feasibility of defining Agents, DocTypes, and Workflows via Markdown/metadata, test context loading based on active documents and links, provide basic AI assistance based on context, and enable internal dogfooding for feedback.
+*   **Target Users (MVP):** Internal development team.
+*   **Problem Statement:** Current AI agents, despite their power, are hard to integrate effectively into daily workflows. Defining tasks, providing context, and ensuring quality output is often inefficient and cumbersome, limiting productivity gains. Simple "one-shot" commands don't suit the iterative nature of complex work.
+*   **Solution Overview:** Airic acts as a collaborative partner within the entire work scenario. It uses "Meta Documents" as a shared, evolving knowledge base co-created by the user and AI. It employs "Guided Problem Decomposition" to help structure thinking. It focuses on AI assisting the user, leveraging the shared document context, rather than full automation. The MVP is a CLI tool validating the core document-driven mechanics.
+
+## 2. Core Concepts / Philosophy
+
+*   **Meta Document as Collaboration Cornerstone:** Documents are not just static records but the dynamic "source code" driving AI work – a shared, evolving "brain" for the human-AI team. Project knowledge (discussions, tasks, decisions, workflows) is continuously integrated into these documents, enabling context-aware AI interaction without constant re-explanation.
+*   **Guided Problem Decomposition as Thinking Partner:** Airic actively assists users in breaking down complex problems through structured questioning, framework suggestions, and MECE checks, integrated with product features (links, templates, visualization hints). It aims to enhance the user's analytical depth and rigor.
+*   **Everything is Document:** Inspired by Linux, the system treats core components like Agents, Tasks, Workflows, and even type definitions as structured Markdown documents within a workspace. This allows for definition, configuration, and extension through editing text files.
+
+## 3. Functional Requirements (MVP) - From docs/prd.md Section 3
+
+*   **FR1: Initialization & Workspace Management**
+    *   `FR1.1`: `airic init <directory>` command to create workspace structure (`.airic/meta/agents`, `.airic/meta/doctypes`, `.airic/history`, etc.).
+    *   `FR1.2`: CLI detects/requires a workspace context for all operations.
+*   **FR2: CLI Interactive Interface**
+    *   `FR2.1`: Provide a REPL interface.
+    *   `FR2.2`: Support command history.
+    *   `FR2.3`: Differentiate command input (`/cmd`) from free text input (to AI).
+    *   `FR2.4`: Use `rich` for formatted output (Markdown rendering, syntax highlighting, clear system messages). Includes status bar showing current doc, agent, doctype.
+*   **FR3: Document Navigation & Management**
+    *   `FR3.1`: Display current active document context (e.g., in prompt). Default to `README.md` or `index.md`.
+    *   `FR3.2`: `/open <path_or_link>` command to switch active document (relative/absolute path or `[[WikiLink]]`). Reloads context.
+    *   `FR3.3`: Tab completion for `/open` lists local `.md` files and `[[WikiLinks]]` from the current document.
+    *   `FR3.4`: `/open` without args reloads the current document (for external edits).
+    *   `FR3.5`: `/open [[non_existent_link]]` creates the file and sets it as active.
+    *   `FR3.6`: CLI status bar shows active document, agent, doctype.
+*   **FR4: Meta Document Processing & Context Loading**
+    *   `FR4.1`: Parse YAML Frontmatter from Markdown files.
+    *   `FR4.2`: Identify `[[WikiLink]]` syntax in document content.
+    *   `FR4.3`: Load context on document switch: current doc content, metadata, recent history, related doc names. Agent may use tools to read linked docs content if needed.
+    *   `FR4.4`: (Lower priority for MVP) Define mechanism for identifying "recently active" docs for broader context.
+*   **FR5: AI Interaction & Assistance**
+    *   `FR5.1`: Send non-command input to the AI model (Google ADK).
+    *   `FR5.2`: Include loaded context (FR4.3) in AI requests (System Prompt or user message).
+    *   `FR5.3`: Drive AI behavior based on active doc metadata: Use `agent:` metadata to load System Prompt/tools from `.airic/meta/agents/`. Use `doctype:` metadata to load specs/requirements from `.airic/meta/doctypes/` and inform AI. Combine if both exist. Use default AI if neither exists.
+    *   `FR5.4`: Format AI Markdown responses using `rich`. Suggest edits clearly.
+    *   `FR5.5`: Persist conversation history per document (e.g., SQLite in `.airic/history`). Load relevant history as context.
+*   **FR6: Definition Documents (Agent, DocType, Workflow)**
+    *   `FR6.1`: Allow defining Agents via `.md` files in `.airic/meta/agents/` (metadata: name, description; content: System Prompt; future: tools list).
+    *   `FR6.2`: Allow defining DocTypes via `.md` files in `.airic/meta/doctypes/` (metadata: name, description; content: specs/template/requirements).
+    *   `FR6.3`: Allow defining Workflows via `.md` files in `.airic/meta/workflows/` (metadata: name, description, doctype; content: workflow steps). Note: Workflows are also a doctype.
+    *   `FR6.5`: System parses these definition files to inform AI behavior (FR5.3).
+
+## 4. Key Features (Summarized for Task Generation)
+
+*   **Feature:** Workspace Initialization
+    *   **Description:** Command (`airic init`) to set up the `.airic` directory and subdirectories for metadata and history.
+*   **Feature:** Interactive Command Line (REPL)
+    *   **Description:** A persistent CLI session supporting commands (prefixed with `/`), free text input to AI, command history, and formatted output using `rich`. Includes a status bar.
+*   **Feature:** Document Management & Navigation
+    *   **Description:** Commands to open (`/open`), reload (`/open`), and implicitly create documents via WikiLinks. Supports path and link autocompletion. Maintains and displays the currently active document context.
+*   **Feature:** Metadata & WikiLink Parsing
+    *   **Description:** Ability to read YAML frontmatter and detect `[[WikiLinks]]` within Markdown files.
+*   **Feature:** Context Loading for AI
+    *   **Description:** Gather relevant information (current doc content/metadata, history, linked docs) to provide context to the AI model.
+*   **Feature:** AI Chat & Assistance
+    *   **Description:** Send user messages and context to Google ADK. Display formatted AI responses. Store and retrieve conversation history per document.
+*   **Feature:** Metadata-Driven AI Behavior
+    *   **Description:** Select and configure the AI (System Prompt, behavioral guidelines) based on `agent:` and `doctype:` metadata found in the active document, referencing definition files.
+*   **Feature:** Custom Definitions (Agent, DocType, Workflow)
+    *   **Description:** Users can create/edit Markdown files in specific `.airic/meta/` subdirectories to define custom agents, document types, and workflow descriptions, which the system then uses.
+
+## 5. Non-Functional Requirements (MVP) - From docs/prd.md Section 4
+
+*   `NFR1`: **Performance:** Acceptable CLI startup and command response times. AI response time is external.
+*   `NFR2`: **Reliability:** Accurate Markdown/metadata/link parsing. Basic error handling for missing files/invalid formats.
+*   `NFR3`: **Usability (Internal):** Intuitive commands, clear help/output via `rich`.
+*   `NFR4`: **Maintainability:** Clean, commented Python code following best practices.
+
+## 6. Out of Scope for MVP - From docs/prd.md Section 5
+
+*   Graphical User Interface (GUI) or integrated editor.
+*   Real-time document synchronization or multi-user collaboration.
+*   Agent tool use, complex agent orchestration, or automated workflow execution.
+*   Advanced/semantic knowledge retrieval beyond basic context loading.
+*   Document-driven visualizations (Kanban, mind maps).
+*   Mechanisms for sharing/discovering definition documents.
+*   Polished user experience or comprehensive error handling.
+*   Security features (user auth, permissions).
+*   Handling very large context windows beyond model limits.
+
+## 7. Technology Stack - From docs/prd.md Section 2.1
+
+*   **Language:** Python 3.12
+*   **AI Interaction:** Google ADK
+*   **CLI Framework:** Typer
+*   **Interactive CLI:** prompt-toolkit, Rich
+*   **Markdown Parsing:** markdown2, python-frontmatter
+*   **History Storage:** SQLite 
