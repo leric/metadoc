@@ -142,6 +142,34 @@ def check():
         raise typer.Exit(code=1)
 
 
+@app.command()
+def repl(
+    workspace_path: Optional[Path] = typer.Argument(
+        None, help="Path to an Airic workspace (uses current directory if not specified)"
+    ),
+):
+    """
+    Start an interactive REPL (Read-Eval-Print Loop) session.
+    
+    The REPL provides a command-line interface for interacting with Airic,
+    including document management and AI assistance.
+    """
+    from airic.cli.repl import start_repl
+    
+    # Use current directory if no path is provided
+    if workspace_path is None:
+        workspace_path = Path.cwd()
+    
+    # Start the REPL
+    try:
+        start_repl(workspace_path)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]REPL session terminated.[/yellow]")
+    except Exception as e:
+        console.print(f"\n[bold red]Error:[/bold red] {str(e)}")
+        raise typer.Exit(code=1)
+
+
 def main():
     """Main entry point for the CLI."""
     app() 

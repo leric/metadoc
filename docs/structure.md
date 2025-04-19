@@ -1,73 +1,91 @@
-## Airic CLI Structure and Functionality
+## Airic CLI Structure and Functionality
 
-Airic is a "Personal AI Work Partner using Meta Documents" with a CLI interface built on Typer. The codebase is organized in a modular fashion with these key components:
+Airic is a "Personal AI Work Partner using Meta Documents" with a CLI interface built on Typer. The codebase follows a modular architecture that separates core functionality from the CLI interface.
 
 ### Main Application Structure
 
-- airic/cli/app.py: Defines the main Typer application with command groups
+- **Entry points:**
+  - `airic/__main__.py`: Entry point when running with `python -m airic`
+  - `airic/cli/main.py`: Primary CLI implementation (preferred over app.py)
+  - `airic/cli/app.py`: Legacy Typer application (being deprecated)
 
-- airic/__main__.py: Entry point for running the CLI with python -m airic
+- **CLI organization:**
+  - Command pattern with logical groups: workspace, document, ai
+  - Rich console output for user-friendly interaction
+  - Context managers for workspace validation
 
-- Command pattern: Commands are organized into logical groups (workspace, document, ai)
+### Core Components
 
-### Workspace Management
+#### Workspace Management
 
-- airic/core/workspace.py: Core workspace functionality
+- **Core implementation: `airic/core/workspace.py`**
+  - `Workspace` class: Manages workspace directory structure and configuration
+  - `WorkspaceConfig` class: Handles workspace configuration data
+  - `WorkspaceContext`: Context manager for commands requiring a valid workspace
+  - `workspace_context()`: Convenient context manager function
 
-- Workspace class: Manages workspace directory structure and configuration
+- **Workspace structure:**
+  - `.airic/`: Root directory for all metadata and history
+  - `.airic/meta/`: Contains agents, doctypes, and workflows definitions
+  - `.airic/meta/agents/`: Agent definitions (e.g., assistant.md)
+  - `.airic/meta/doctypes/`: Document type definitions
+  - `.airic/meta/workflows/`: Workflow process definitions
+  - `.airic/history/`: Records of document interactions and agent responses
 
-- WorkspaceConfig class: Handles workspace configuration data
+- **Workspace initialization: `airic/core/init.py`**
+  - `initialize_workspace()`: Sets up directory structure and base configuration
+  - Default templates for agents, doctypes, and workflows
+  - Rollback mechanism for failed initialization
 
-- WorkspaceContext: Context manager for commands requiring a valid workspace
+#### Document Operations
 
-- Workspace structure includes .airic directory with meta, agents, doctypes, workflows, and history subdirectories
+- **Document commands: `airic/cli/commands/document.py`**
+  - `list_documents`: Lists Markdown documents in the workspace
+  - `open_document`: Opens a document for editing (or creates it)
+  - `document_info`: Displays information about a document
 
-- airic/cli/commands/workspace.py: CLI commands for workspace operations
+#### Utilities and Helpers
 
-- init_workspace: Creates a new workspace with configuration
+- **CLI utilities: `airic/cli/utils.py`**
+  - Rich console output formatting functions
+  - `requires_workspace` decorator for commands needing workspace context
+  - Path formatting and user interaction helpers
 
-- workspace_info: Displays information about current workspace
+- **Markdown utilities: `airic/utils/markdown.py`**
+  - Functions for parsing and processing Markdown documents
+  - Frontmatter extraction and validation
 
-- check_workspace: Validates if current directory is a workspace
+### Command Structure
 
-### Document Operations
+#### Workspace Commands
 
-- airic/cli/commands/document.py: Document-related CLI commands
+- `airic init [directory]`: Initialize a new workspace
+- `airic check`: Verify current directory is a valid workspace
+- Additional workspace management commands in `airic/cli/commands/workspace.py`
 
-- list_documents: Lists Markdown documents in the workspace
+#### Document Commands
 
-- open_document: Opens a document for editing (or creates it)
+- `airic doc list`: List Markdown documents in workspace
+- `airic doc open <document_path>`: Open/create a document
+- `airic doc info <document_path>`: Show document information
 
-- document_info: Displays information about a document
+#### AI Interaction Commands
 
-### Utilities
-
-- airic/cli/utils.py: Shared utility functions
-
-- Rich console output formatting
-
-- Workspace requirement decorator
-
-- Helper functions for consistent UI feedback
-
-- Path formatting and confirmation prompts
-
-### Command Registration Pattern
-
-- Commands are defined in separate modules
-
-- Modules are imported in app.py's get_app() function
-
-- Commands use the @requires_workspace decorator when workspace context is needed
+- AI-related commands defined in `airic/cli/commands/ai.py`
 
 ### Design Patterns
 
-- Context manager pattern for workspace validation
+- **Context Manager Pattern**: `WorkspaceContext` for workspace validation
+- **Decorator Pattern**: `@requires_workspace` for command requirements
+- **Command Pattern**: CLI operations organized as discrete commands
+- **Factory Pattern**: App instance creation via `get_app()`
 
-- Decorator pattern for command requirements
+### Implementation Notes
 
-- Command pattern for CLI operations
+- Separate CLI interface from core logic for better testability and reuse
+- Rich console output for improved user experience
+- YAML-based configuration for workspace settings
+- Markdown documents with YAML frontmatter for metadata
+- File-based organization of agent and document type definitions
 
-- Factory pattern for app instance creation
-
-The codebase follows a clean architecture with separation of concerns between core functionality and CLI interface. The workspace concept is central, providing a consistent environment for AI-assisted document operations with proper configuration and directory structure.
+This architecture provides a clean separation of concerns, making the codebase maintainable and extensible. The workspace concept is central, providing a consistent environment for AI-assisted document operations with proper configuration and directory structure.
