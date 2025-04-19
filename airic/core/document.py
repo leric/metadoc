@@ -74,6 +74,11 @@ class Document:
         """Get the document type from metadata."""
         return self._metadata.get('doctype')
     
+    @property
+    def agent(self) -> Optional[str]:
+        """Get the specified agent for this document from metadata."""
+        return self._metadata.get('agent')
+    
     def _load(self) -> None:
         """
         Load the document content from its file path.
@@ -109,6 +114,7 @@ class Document:
                 
                 # Parse frontmatter as YAML
                 try:
+                    # Safe load already captures all keys, including 'agent' if present
                     self._metadata = yaml.safe_load(frontmatter) or {}
                 except Exception as e:
                     logger.warning(f"Failed to parse frontmatter in {self.path}: {str(e)}")

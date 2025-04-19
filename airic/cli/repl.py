@@ -9,6 +9,7 @@ import os
 import textwrap
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Callable, Union
+import re  # Add import for regex
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
@@ -16,18 +17,135 @@ from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.styles import Style
-from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.completion import WordCompleter, Completer, Completion, PathCompleter
 from rich.console import Console, ConsoleOptions, RenderResult
 from rich.markdown import Markdown
 from rich.syntax import Syntax
 from rich.panel import Panel
 from rich.text import Text
 from rich import box
+from prompt_toolkit.document import Document as PromptDocument # Avoid collision with our Document
 
 from airic.core.workspace import Workspace, workspace_context, WorkspaceValidationError
 from airic.core.document import Document, DocumentError, find_documents
 from airic.core.ai_service import get_ai_service, AIServiceError
 
+
+# Custom Completer for /open command
+class OpenCompleter(Completer):
+    def __init__(self, repl_instance: 'AiricREPL'):
+        self.repl = repl_instance
+
+    def get_completions(self, document: PromptDocument, complete_event):
+        if not self.repl.workspace:
+            return # No workspace, no completions
+
+        text_before_cursor = document.text_before_cursor
+        
+        # Extract the part after '/open '
+        parts = text_before_cursor.split(maxsplit=1)
+        if len(parts) < 2:
+             # Not enough text after /open yet, or just /open
+             # Maybe complete top-level dirs/files here? Let's keep it simple for now.
+             current_input = ""
+        else:
+             current_input = parts[1]
+
+        workspace_root = self.repl.workspace.root_path
+        
+        # --- 1. WikiLink Completions ---
+        wikilinks = set()
+        if self.repl.active_document:
+            try:
+                # Find unique WikiLinks in the active document body
+                found = re.findall(r'\[\[(.+?)\]\]', self.repl.active_document.body)
+                wikilinks.update(f"[[{link.strip()}]]" for link in found)
+            except Exception:
+                # Ignore errors reading/parsing document body for links
+                pass 
+                
+        # Yield matching WikiLinks first
+        for link in sorted(list(wikilinks)):
+            if link.lower().startswith(current_input.lower()):
+                 # Display [[Link Name]], complete with [[Link Name]]
+                yield Completion(
+                    link, 
+                    start_position=-len(current_input), 
+                    display=link,
+                    display_meta='WikiLink'
+                )
+
+        # --- 2. Filesystem Path Completions ---
+        try:
+            # Use PathCompleter logic carefully adapted for workspace relative paths
+            # PathCompleter expects an absolute path fragment usually. We need to handle relative.
+            
+            # Determine the base path and partial name for glob
+            if os.path.sep in current_input:
+                base_dir_str, partial_name = os.path.split(current_input)
+                base_path = (workspace_root / base_dir_str).resolve()
+            else:
+                base_path = workspace_root
+                partial_name = current_input
+
+            # Ensure base_path is within the workspace and exists
+            if base_path.is_dir() and str(base_path).startswith(str(workspace_root)):
+                # Glob for matching files and directories
+                for item in base_path.glob(f"{partial_name}*"):
+                    # Construct the completion text relative to workspace root
+                    try:
+                        rel_path_str = str(item.relative_to(workspace_root))
+                    except ValueError:
+                        continue # Should not happen if logic is correct
+
+                    # Skip already suggested WikiLinks (if they resolve to the same file)
+                    # This check is basic, might need refinement
+                    is_wikilink_match = False
+                    if item.is_file() and item.suffix == '.md':
+                         wikilink_form = f"[[{item.stem}]]"
+                         if wikilink_form in wikilinks:
+                              is_wikilink_match = True
+                              
+                    if not is_wikilink_match:
+                        display_meta = 'Directory' if item.is_dir() else 'File'
+                        # Append / to directories for easier navigation
+                        completion_text = rel_path_str + os.path.sep if item.is_dir() else rel_path_str
+                        
+                        yield Completion(
+                            completion_text,
+                            start_position=-len(current_input),
+                            display=rel_path_str, # Show relative path without trailing /
+                            display_meta=display_meta
+                        )
+        except Exception as e:
+             # Log error maybe? For now, fail silently if path completion fails
+             # self.repl.print_warning(f"Debug: Path completion error: {e}") # DEBUG
+             pass
+
+
+# Main Completer deciding which completer to use
+class ConditionalCompleter(Completer):
+    def __init__(self, repl_instance: 'AiricREPL'):
+        self.repl = repl_instance
+        self.command_completer = WordCompleter([cmd.lstrip('/') for cmd in repl_instance.commands.keys()], ignore_case=True)
+        self.open_completer = OpenCompleter(repl_instance)
+
+    def get_completions(self, document: PromptDocument, complete_event):
+        text = document.text_before_cursor
+        
+        if text.startswith('/open '):
+            # Use OpenCompleter if we are typing after '/open '
+            # We need to adjust the document context for OpenCompleter potentially
+            # Let OpenCompleter handle splitting '/open ' off
+            yield from self.open_completer.get_completions(document, complete_event)
+        elif text.startswith('/'):
+             # Use command completer if starting with / but not '/open '
+             # Need to adjust document for WordCompleter - it completes from start
+             word_doc = PromptDocument(text.lstrip('/'), cursor_position=document.cursor_position - 1)
+             yield from self.command_completer.get_completions(word_doc, complete_event)
+        # else:
+            # Could add other completers here, e.g., for AI context
+            # For now, no completions if not starting with /
 
 class AiricREPL:
     """
@@ -50,6 +168,7 @@ class AiricREPL:
         self.workspace = None
         self.active_document = None
         self.active_doctype = None
+        self.active_agent = None # Initialize active_agent early
         self.console = Console()
         self.running = True  # Flag to control the REPL loop
         
@@ -61,26 +180,7 @@ class AiricREPL:
         history_dir.mkdir(parents=True, exist_ok=True)
         history_file = history_dir / "command_history.txt"
         
-        # Define command completions
-        command_completer = WordCompleter([
-            '/help', '/exit', '/quit',
-            '/list', '/open', '/info', '/close', '/new',
-            '/init', '/edit', '/save',
-            '/ai',
-            # Additional commands will be added as they're implemented
-        ])
-        
-        # Set up prompt session with history
-        self.session = PromptSession(
-            history=FileHistory(str(history_file)),
-            auto_suggest=AutoSuggestFromHistory(),
-            key_bindings=self._create_keybindings(),
-            style=self._create_style(),
-            completer=command_completer,
-            bottom_toolbar=self._get_status_bar,
-        )
-        
-        # Register command handlers
+        # Register command handlers *BEFORE* initializing completer
         self.commands = {
             'exit': self._handle_exit,
             'quit': self._handle_exit,
@@ -95,7 +195,20 @@ class AiricREPL:
             'save': self._handle_save,
             'ai': self._handle_ai,
         }
-    
+
+        # Use the new ConditionalCompleter
+        main_completer = ConditionalCompleter(self)
+
+        # Set up prompt session with history
+        self.session = PromptSession(
+            history=FileHistory(str(history_file)),
+            auto_suggest=AutoSuggestFromHistory(),
+            key_bindings=self._create_keybindings(),
+            style=self._create_style(),
+            completer=main_completer, # Use the new completer
+            bottom_toolbar=self._get_status_bar,
+        )
+        
     def _create_keybindings(self) -> KeyBindings:
         """Create custom key bindings for the REPL."""
         bindings = KeyBindings()
@@ -143,6 +256,9 @@ class AiricREPL:
                 parts.append(f"<status.info> Type:</status.info> <status.doctype>{self.active_doctype}</status.doctype>")
             else:
                 parts.append("<status.info> Type:</status.info> <status.toolbar>none</status.toolbar>")
+            # Add agent info if available
+            if self.active_agent:
+                parts.append(f"<status.info> Agent:</status.info> <status.doctype>{self.active_agent}</status.doctype>") # Using doctype style for agent
         else:
             parts.append("<status.info>No active document</status.info>")
         
@@ -192,24 +308,61 @@ class AiricREPL:
                 self.print_error(f"Error: {str(e)}")
     
     def _initialize_workspace(self):
-        """Initialize the workspace if a path is provided."""
+        """Initialize the workspace if a path is provided and load default document."""
+        workspace_loaded = False
         if self.workspace_path:
-            with workspace_context(self.workspace_path) as workspace:
-                self.workspace = workspace
+            try:
+                with workspace_context(self.workspace_path) as workspace:
+                    self.workspace = workspace
+                    workspace_loaded = True
+            except WorkspaceValidationError as e:
+                self.print_warning(f"Failed to load workspace at {self.workspace_path}: {e}")
+                self.workspace = None # Ensure workspace is None if loading fails
         else:
             # Try to find workspace from current directory
             try:
                 with workspace_context() as workspace:
                     self.workspace = workspace
+                    workspace_loaded = True
             except WorkspaceValidationError:
                 # No valid workspace found
                 self.workspace = None
+
+        # If workspace loaded successfully, try opening default document
+        if workspace_loaded and self.workspace:
+            self._open_default_document()
+    
+    def _open_default_document(self):
+        """Try to open README.md or index.md as the default document."""
+        default_candidates = ["README.md", "index.md"]
+        opened_default = False
+        for filename in default_candidates:
+            path = self.workspace.root_path / filename
+            if path.exists():
+                try:
+                    # Use internal logic similar to _handle_open but without user messages for initial load
+                    document = Document(path)
+                    self.active_document = document
+                    self.active_doctype = document.doctype
+                    self.active_agent = document.agent
+                    self.print_info(f"Opened default document: {filename}") # Inform user
+                    opened_default = True
+                    break # Stop after opening the first found default
+                except DocumentError as e:
+                    self.print_warning(f"Error opening default document {filename}: {str(e)}")
+       
+        # if not opened_default:
+            # self.print_info("No default document (README.md or index.md) found.")
+            # Optionally create one if desired, or just start with no active doc
     
     def _get_prompt_text(self) -> str:
         """Generate the prompt text based on current context."""
         if self.active_document:
             doc_name = self.active_document.name
-            prompt = f"[{doc_name}] > "
+            if self.active_agent:
+                prompt = f"[{doc_name}|{self.active_agent}] > "
+            else:
+                prompt = f"[{doc_name}] > "
         else:
             prompt = "airic > "
         
@@ -389,47 +542,121 @@ class AiricREPL:
         self.console.print(table)
         self.print_info(f"Found {len(documents)} document(s)")
     
+    def _resolve_document_path(self, path_str: str) -> Optional[Path]:
+        """
+        Resolve a path string (absolute, relative, or WikiLink) to a document Path.
+        Handles specific logic for resolving potential new WikiLink paths.
+        """
+        path_str = path_str.strip()
+        if not path_str:
+            return None
+
+        # Check for WikiLink format [[Link Name]]
+        wikilink_match = re.match(r'^\[\[(.+)\]\]$', path_str)
+        if wikilink_match:
+            link_content = wikilink_match.group(1).strip()
+            target_filename = f"{link_content.lstrip('/')}.md" # Ensure no leading slash in filename itself
+            
+            # Check if it's an absolute path within the workspace (starts with /)
+            if link_content.startswith('/'):
+                # Resolve relative to workspace root
+                return self.workspace.root_path / target_filename
+            else:
+                # Relative WikiLink: Resolve relative to current doc or workspace root
+                if self.active_document and self.active_document.path:
+                    # Resolve relative to the *parent directory* of the active document
+                    base_dir = self.active_document.path.parent
+                    return base_dir / target_filename
+                else:
+                    # No active document, resolve relative to workspace root
+                    return self.workspace.root_path / target_filename
+
+        # Handle regular paths (non-WikiLink)
+        path = Path(path_str)
+        if not path.is_absolute():
+            # Resolve relative paths relative to workspace root for consistency
+            # Could potentially resolve relative to active doc dir here too if desired
+            return self.workspace.root_path / path
+        return path # It's already an absolute path
+
     def _handle_open(self, args: str = ""):
         """
         Handle the /open command.
         
         Args:
-            args: Path to the document to open
+            args: Path to the document to open (relative, absolute, or [[WikiLink]])
+                  If empty, reloads the current document.
         """
         if not self.workspace:
             self.print_error("No active workspace. Use /init to initialize a workspace.")
             return
-        
-        if not args:
-            self.print_error("Missing document path. Usage: /open <path>")
-            return
-        
+
         path_str = args.strip()
-        path = Path(path_str)
-        
-        # Convert to absolute path if it's relative
-        if not path.is_absolute():
-            path = self.workspace.root_path / path
-        
-        # Check if the document exists
-        if not path.exists():
-            self.print_error(f"Document not found: {path}")
-            self.print_info("Use /new to create a new document.")
+
+        # Handle empty args: Reload current document
+        if not path_str:
+            if not self.active_document:
+                self.print_error("No active document to reload. Use /open <path> to open one.")
+                return
+            try:
+                self.active_document._load()  # Use the internal load method to refresh
+                self.print_success(f"Reloaded document: {self.active_document.name}")
+                self.print_markdown(self.active_document.body) # Optionally redisplay content
+            except DocumentError as e:
+                self.print_error(f"Error reloading document: {str(e)}")
             return
-        
+
+        # Resolve the path (handles relative, absolute, WikiLink)
+        resolved_path = self._resolve_document_path(path_str)
+        if not resolved_path:
+            self.print_error("Invalid path provided.")
+            return
+
+        # Check if the document exists
+        if not resolved_path.exists():
+            # Special handling for non-existent WikiLinks: Create and open
+            if re.match(r'^\[\[(.+)\]\]$', path_str):
+                self.print_info(f"Creating new document from WikiLink: {resolved_path}")
+                try:
+                    # Ensure parent directory exists
+                    resolved_path.parent.mkdir(parents=True, exist_ok=True)
+                    
+                    # Use the same creation logic as /new
+                    document = Document.create_empty(resolved_path) 
+                    document.save()
+                    # Set as active document
+                    self.active_document = document
+                    self.active_doctype = document.doctype
+                    self.active_agent = document.agent
+                    self.print_success(f"Created and opened new document: {resolved_path.name}")
+                    # Display the document content
+                    self.print_markdown(document.body)
+                except DocumentError as e:
+                    self.print_error(f"Error creating document from WikiLink: {str(e)}")
+            else:
+                # Standard file not found error
+                self.print_error(f"Document not found: {resolved_path}")
+                self.print_info("Use /new to create a new document.")
+            return # Return after handling non-existent case
+
+        # Check if it's the same document already open
+        if self.active_document and self.active_document.path == resolved_path:
+            self.print_info(f"Document '{resolved_path.name}' is already open.")
+            # Optionally force a reload here if desired, or just do nothing.
+            # self._handle_open("") # Could call reload logic
+            return
+
         try:
             # Load the document
-            document = Document(path)
+            document = Document(resolved_path)
             self.active_document = document
-            
-            # Determine document type from metadata
             self.active_doctype = document.doctype
-            
-            self.print_success(f"Opened document: {path.name}")
-            
+            self.active_agent = document.agent
+            self.print_success(f"Opened document: {resolved_path.name}")
+
             # Display the document content
             self.print_markdown(document.body)
-            
+
         except DocumentError as e:
             self.print_error(f"Error opening document: {str(e)}")
     
@@ -499,10 +726,12 @@ class AiricREPL:
         meta_table.add_row("Name", self.active_document.name)
         meta_table.add_row("Path", str(self.active_document.path))
         meta_table.add_row("Type", self.active_document.doctype or "unknown")
+        if self.active_agent: # Display agent if set
+            meta_table.add_row("Agent", self.active_agent)
         
         # Add custom metadata
         for key, value in self.active_document.metadata.items():
-            if key != 'doctype':  # Already shown above
+            if key not in ['doctype', 'agent']:  # Avoid duplicating already shown fields
                 meta_table.add_row(key, str(value))
         
         self.console.print(meta_table)
