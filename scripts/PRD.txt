@@ -43,9 +43,10 @@
     *   `FR5.4`: Format AI Markdown responses using `rich`. Suggest edits clearly.
     *   `FR5.5`: Persist conversation history per document (e.g., SQLite in `.airic/history`). Load relevant history as context.
 *   **FR6: Definition Documents (Agent, DocType, Workflow)**
-    *   `FR6.1`: Allow defining Agents via `.md` files in `.airic/meta/agents/` (metadata: name, description; content: System Prompt; future: tools list).
-    *   `FR6.2`: Allow defining DocTypes via `.md` files in `.airic/meta/doctypes/` (metadata: name, description; content: specs/template/requirements).
-    *   `FR6.3`: Allow defining Workflows via `.md` files in `.airic/meta/workflows/` (metadata: name, description, doctype; content: workflow steps). Note: Workflows are also a doctype.
+    *   `FR6.1`: Provide `.airic/meta/doctypes/agent_def.md` defines the format and standard of Agent definition document
+    *   `FR6.2`: Provide `.airic/meta/doctypes/doctype_def.md` defines the format and standard of DocType definition document
+    *   `FR6.3`: Provide `.airic/meta/doctypes/workflow_def.md` defines the format and standard of Workflow definition document
+    *   `FR6.4`: Provide `.airic/meta/agents/assistant.md` as the default agent, and as an example of agent definition using agent_def.md.
     *   `FR6.5`: System parses these definition files to inform AI behavior (FR5.3).
 
 ## 4. Key Features (Summarized for Task Generation)

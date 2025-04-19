@@ -16,185 +16,184 @@ logger = logging.getLogger(__name__)
 
 # Default templates for workspace files
 DEFAULT_TEMPLATES = {
-    # Default template for a basic agent
-    "agents/default.md": """---
-name: default
-description: A basic agent that responds to documents without specific formatting
+    # Template for defining agents
+    "agents/agent_def.md": """---
+name: agent_def
+description: Template and guidelines for creating agent definitions
 version: 0.1.0
+doctype: doctype
 ---
 
-# Default Agent
+# Agent Definition Document Type
 
-You are a helpful AI assistant that can discuss and assist with any document.
-When working with a document that doesn't have a specific agent or doctype associated with it,
-you will act as a general-purpose assistant.
-
-## Guidelines
-
-- Be concise and direct in responses
-- Ask clarifying questions when the user's intent is unclear
-- Suggest relevant commands or document types when appropriate
-- Help with exploring and understanding documents in the workspace
-""",
-
-    # Default template for a writer agent
-    "agents/writer.md": """---
-name: writer
-description: An agent specialized in helping with writing and editing text documents
-version: 0.1.0
----
-
-# Writer Agent
-
-You are a specialized AI assistant focused on helping users with writing and editing documents.
-You excel at improving text clarity, structure, grammar, and style.
-
-## Guidelines
-
-- Focus on improving the document's readability and impact
-- Suggest structural improvements when appropriate
-- Help with word choice and phrasing
-- Check for consistency in tone and style
-- Point out grammatical issues and suggest corrections
-- Ask for clarification about the target audience and purpose if needed
-""",
-
-    # Default template for a meeting notes doctype
-    "doctypes/meeting_notes.md": """---
-name: meeting_notes
-description: Template and guidelines for meeting notes and summaries
-version: 0.1.0
----
-
-# Meeting Notes Document Type
-
-This document type is designed for capturing and organizing meeting notes in a clear, structured format.
+This document type is designed for defining agents in the Airic workspace. 
+Agents are specialized AI assistants that follow specific behavior patterns when interacting with documents.
 
 ## Structure
 
-Meeting notes should include the following sections:
+Agent definition documents should include:
 
-1. **Meeting Information**
-   - Date and time
-   - Participants
-   - Meeting purpose/agenda
+1. **Metadata (YAML Frontmatter):**
+   ```yaml
+   ---
+   name: agent_name              # Required: Unique identifier for the agent
+   description: Short summary    # Required: Brief description of agent's purpose
+   version: 0.1.0                # Required: Semantic version
+   tools: [tool1, tool2]         # Optional: Tools this agent can use (future feature)
+   ---
+   ```
 
-2. **Discussion Points**
-   - Key topics discussed
-   - Decisions made
-   - Action items with assignees and deadlines
+2. **Agent Description:**
+   - Detailed explanation of the agent's purpose and capabilities
+   - Target use cases and document types it works best with
 
-3. **Next Steps**
-   - Follow-up meetings
-   - Deadlines and milestones
+3. **System Prompt:**
+   - Specific instructions that define the agent's behavior
+   - Personality traits, response style, and expertise areas
+   - Constraints and guidelines for interactions
 
-## Example
+4. **Examples (Optional):**
+   - Sample interactions showing how the agent should respond
+   - "Do" and "Don't" examples to clarify behavior boundaries
 
-```
-# Project Kickoff Meeting
+## Guidelines
 
-**Date:** 2025-04-15
-**Time:** 10:00-11:30
-**Participants:** Alice, Bob, Charlie
-
-## Agenda
-1. Project overview
-2. Timeline discussion
-3. Task assignments
-
-## Discussion
-- Alice presented the project goals and constraints
-- Team agreed on the two-week sprint schedule
-- Concerns raised about the API integration timeline
-
-## Action Items
-- [ ] Bob: Create project repository (Due: Apr 16)
-- [ ] Charlie: Draft API specifications (Due: Apr 18)
-- [ ] Alice: Schedule technical architecture review (Due: Apr 20)
-
-## Next Meeting
-- Technical review on April 20, 14:00
-```
+- Keep system prompts specific and focused on a single responsibility
+- Use clear, direct language in system prompts
+- Avoid contradictory instructions
+- Consider the agent's limitations when defining capabilities
+- Test agents with various document types and user queries
 """,
 
-    # Default template for a brainstorming doctype
-    "doctypes/brainstorming.md": """---
-name: brainstorming
-description: Structure and guidelines for brainstorming sessions
+    # Template for defining document types
+    "doctypes/doctype_def.md": """---
+name: doctype_def
+description: Template and guidelines for creating document type definitions
 version: 0.1.0
+doctype: doctype
 ---
 
-# Brainstorming Document Type
+# DocType Definition Document Type
 
-This document type is designed for creative ideation sessions and capturing unstructured thoughts that can later be refined into more formal documents or tasks.
+This document type is designed for defining document types in the Airic workspace.
+Document types define the structure, purpose, and processing rules for different kinds of documents.
 
 ## Structure
 
-Brainstorming documents should include:
+DocType definition documents should include:
 
-1. **Context/Problem Statement**
-   - Clear description of the challenge or opportunity
-   - Any constraints or requirements
+1. **Metadata (YAML Frontmatter):**
+   ```yaml
+   ---
+   name: doctype_name           # Required: Unique identifier for the doctype
+   description: Short summary   # Required: Brief description of doctype's purpose
+   version: 0.1.0               # Required: Semantic version
+   ---
+   ```
 
-2. **Ideas Section**
-   - Unfiltered list of ideas and concepts
-   - Questions to explore further
-   - Connections between different concepts
+2. **Purpose Description:**
+   - Detailed explanation of what this document type is used for
+   - When and why to use this document type
 
-3. **Next Steps**
-   - Ideas worthy of deeper exploration
-   - Action items to validate or develop concepts
+3. **Structure Guidelines:**
+   - Required and optional sections
+   - Formatting and content requirements
+   - Any special syntax or conventions
 
-## Guidelines for Effective Brainstorming
+4. **Examples (Optional):**
+   - Sample document snippets showing proper structure
+   - Templates that can be copied and adapted
 
-- Focus on quantity of ideas first, evaluation later
-- Build on others' ideas with "yes, and..." thinking
-- Avoid critiquing ideas during the generation phase
-- Use lists, mind maps, or other visual structures
-- Capture peripheral thoughts even if they seem tangential
+## Guidelines
+
+- Focus on structure more than content requirements
+- Provide clear, actionable guidelines for document creation
+- Balance flexibility and standardization
+- Consider both human readability and machine processability
+- Test document types with relevant agents to ensure compatibility
 """,
 
-    # Default template for a workflow
-    "workflows/document_review.md": """---
-name: document_review
-description: A workflow for systematically reviewing and improving documents
+    # Template for defining workflows
+    "workflows/workflow_def.md": """---
+name: workflow_def
+description: Template and guidelines for creating workflow definitions
 version: 0.1.0
-doctype: workflow
+doctype: doctype
 ---
 
-# Document Review Workflow
+# Workflow Definition Document Type
 
-This workflow defines a systematic process for reviewing and improving documents in a collaborative environment.
+This document type is designed for defining workflows in the Airic workspace.
+Workflows define multi-step processes that guide users through completing complex tasks.
 
-## Stages
+## Structure
 
-1. **Initial Assessment**
-   - Identify document type and purpose
-   - Determine appropriate review criteria
-   - Set review priorities (structure, content, grammar, etc.)
+Workflow definition documents should include:
 
-2. **Content Review**
-   - Evaluate whether the document achieves its purpose
-   - Check for completeness of information
-   - Assess logical flow and organization
+1. **Metadata (YAML Frontmatter):**
+   ```yaml
+   ---
+   name: workflow_name          # Required: Unique identifier for the workflow
+   description: Short summary   # Required: Brief description of workflow's purpose
+   version: 0.1.0               # Required: Semantic version
+   doctype: workflow            # Required: Always set to "workflow"
+   ---
+   ```
 
-3. **Language Review**
-   - Check grammar and spelling
-   - Improve clarity and conciseness
-   - Ensure consistent tone and terminology
+2. **Purpose Description:**
+   - Detailed explanation of what this workflow accomplishes
+   - When and why to use this workflow
 
-4. **Finalization**
-   - Implement accepted changes
-   - Update metadata (version, last reviewed date)
-   - Document decisions made during review
+3. **Stages:**
+   - Clearly defined steps in the workflow
+   - Dependencies between steps
+   - Expected inputs and outputs for each step
 
-## Usage
+4. **Usage Instructions:**
+   - How to initiate and progress through the workflow
+   - How to track status and completion
 
-To use this workflow:
+## Guidelines
 
-1. Create a new document with metadata referencing this workflow: `workflow: document_review`
-2. Work through each stage systematically
-3. Use checkboxes to track progress: `- [x] Completed initial assessment`
+- Break complex processes into clear, manageable steps
+- Define success criteria for each step and the overall workflow
+- Provide guidance for handling common issues or exceptions
+- Consider different skill levels when designing workflow instructions
+- Test workflows end-to-end to ensure they lead to successful outcomes
+""",
+
+    # Default assistant agent
+    "agents/assistant.md": """---
+name: assistant
+description: A general-purpose assistant for document interaction and task support
+version: 0.1.0
+---
+
+# Assistant Agent
+
+You are a helpful AI assistant that works with the user in the context of their current document.
+When interacting with the user, you should consider the content of their current document, its metadata,
+and any relevant context from linked documents.
+
+## Guidelines
+
+- Be concise and direct in your responses
+- When the user asks about content in their document, reference it specifically
+- Help with drafting, editing, and organizing document content
+- Suggest improvements to document structure and clarity
+- When appropriate, help the user break down complex tasks into smaller steps
+- If the document has a specific doctype, follow the associated guidelines
+- Offer relevant commands when they would help the user
+
+## Document Context
+
+For each interaction, you'll receive:
+- The content of the user's current document
+- Document metadata (like doctype, if specified)
+- Any relevant history from previous interactions with this document
+- Information about linked documents (when available)
+
+Use this context to provide the most helpful, relevant responses possible.
 """
 }
 
