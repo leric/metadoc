@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # Default templates for workspace files
 DEFAULT_TEMPLATES = {
     # Template for defining agents
-    "agents/agent_def.md": """---
+    "doctypes/agent_def.md": """---
 name: agent_def
 description: Template and guidelines for creating agent definitions
 version: 0.1.0
@@ -114,7 +114,7 @@ DocType definition documents should include:
 """,
 
     # Template for defining workflows
-    "workflows/workflow_def.md": """---
+    "doctypes/workflow_def.md": """---
 name: workflow_def
 description: Template and guidelines for creating workflow definitions
 version: 0.1.0

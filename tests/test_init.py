@@ -135,7 +135,7 @@ def test_initialize_workspace_with_template_error(temp_dir, monkeypatch):
             file_str = str(file)
             
         # Only fail on this specific file
-        if "agents/default.md" in file_str:
+        if "agents/assistant.md" in file_str:
             raise IOError("Failed to create file")
         return original_open(file, *args, **kwargs)
     

@@ -1,3 +1,3 @@
 """
-Test package for Airic.
+Tests package for Airic.
 """ 

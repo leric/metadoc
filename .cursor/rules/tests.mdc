@@ -1,0 +1,11 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Test strategy
+
+- Use pytest.
+- Prefer unittest, but when extensive mocking is required(need to patch mocks), switch to integrated tests.
+- Prefer parametrized tests.
