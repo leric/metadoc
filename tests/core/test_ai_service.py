@@ -57,7 +57,7 @@ class TestMockAIService:
         
         # Test question responses
         response = service.process_text("What is this?")
-        assert "interesting question" in response
+        assert "interesting question about" in response
         
         # Test default response
         response = service.process_text("some random text")

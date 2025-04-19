@@ -210,9 +210,6 @@ class AiricREPL:
         if self.active_document:
             doc_name = self.active_document.name
             prompt = f"[{doc_name}] > "
-        elif self.workspace:
-            workspace_name = self.workspace.config.get('name', 'airic')
-            prompt = f"[{workspace_name}] > "
         else:
             prompt = "airic > "
         

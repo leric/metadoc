@@ -8,6 +8,7 @@ implementing interfaces for various AI models and providers.
 import os
 import logging
 import textwrap
+import re
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 
@@ -90,11 +91,12 @@ class MockAIService(AIService):
         Returns:
             Predefined response text based on the input
         """
+        text_lower = text.lower()
         # Simple mock responses based on keywords in the input
-        if "hello" in text.lower() or "hi" in text.lower():
+        if "hello" in text_lower or re.search(r'\b(hi|hey)\b', text_lower):
             return "Hello! How can I assist you today?"
         
-        if "help" in text.lower():
+        if "help" in text_lower:
             return textwrap.dedent("""
             I can help you with:
             

@@ -135,6 +135,7 @@ class TestReplAI:
         with patch('airic.cli.repl.get_ai_service') as mock_get_service:
             # Create a new mock service for the update
             new_service = MagicMock()
+            new_service.config = {"model": "test-model", "temperature": 0.7}
             mock_get_service.return_value = new_service
             
             with patch.object(repl, '_show_ai_info') as mock_show_info:
@@ -142,16 +143,16 @@ class TestReplAI:
                     # Test updating settings
                     repl._handle_ai_settings("model=test-model temperature=0.7")
                     
-                    # Check that settings were updated
-                    assert repl.ai_service.config == {"model": "test-model", "temperature": 0.7}
-                    
-                    # Check that a new service was created
+                    # Check that service was configured with correct settings
                     mock_get_service.assert_called_once_with(
                         "mock", {"model": "test-model", "temperature": 0.7}
                     )
                     
                     # Check that the service was replaced
                     assert repl.ai_service == new_service
+                    
+                    # Check that the config is accessible
+                    assert repl.ai_service.config == {"model": "test-model", "temperature": 0.7}
                     
                     # Check that success was reported
                     mock_success.assert_called_once()
@@ -164,9 +165,30 @@ class TestReplAI:
         """Test type conversion for AI settings."""
         repl.ai_service.config = {}
         
-        with patch('airic.cli.repl.get_ai_service'):
+        with patch('airic.cli.repl.get_ai_service') as mock_get_service:
+            # Create a new mock service with properly typed config values
+            new_service = MagicMock()
+            new_service.config = {
+                "bool_val": True,
+                "int_val": 42, 
+                "float_val": 3.14,
+                "str_val": "text"
+            }
+            mock_get_service.return_value = new_service
+            
             # Test with different value types
             repl._handle_ai_settings("bool_val=true int_val=42 float_val=3.14 str_val=text")
+            
+            # Verify the service was created with correct parameters
+            mock_get_service.assert_called_once_with("mock", {
+                "bool_val": True,
+                "int_val": 42, 
+                "float_val": 3.14,
+                "str_val": "text"
+            })
+            
+            # Check that the service was updated
+            assert repl.ai_service == new_service
             
             # Check that values were converted to appropriate types
             assert repl.ai_service.config["bool_val"] is True
