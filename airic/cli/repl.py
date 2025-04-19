@@ -7,6 +7,7 @@ providing command history, input handling, and a foundation for rich output.
 
 import os
 import textwrap
+import asyncio # Add asyncio import
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Callable, Union
 import re  # Add import for regex
@@ -28,7 +29,7 @@ from prompt_toolkit.document import Document as PromptDocument # Avoid collision
 
 from airic.core.workspace import Workspace, workspace_context, WorkspaceValidationError
 from airic.core.document import Document, DocumentError, find_documents
-from airic.core.ai_service import get_ai_service, AIServiceError
+from airic.core.agent import interact_with_agent # Import the correct agent interaction function
 
 
 # Custom Completer for /open command
@@ -155,6 +156,7 @@ class AiricREPL:
     - Command input with history
     - Differentiation between commands and text input
     - Rich output formatting including Markdown and syntax highlighting
+    - Asynchronous interaction with the AI agent
     """
     
     def __init__(self, workspace_path: Optional[Path] = None):
@@ -172,8 +174,9 @@ class AiricREPL:
         self.console = Console()
         self.running = True  # Flag to control the REPL loop
         
-        # Initialize AI service
-        self.ai_service = get_ai_service("mock")
+        # Initialize AI service - Keep this for now if other parts rely on it,
+        # but the core text processing will use the agent.
+        # self.ai_service = get_ai_service("mock") # Comment out or remove if fully replaced
         
         # Set up history file in user's home directory
         history_dir = Path.home() / ".airic" / "history"
@@ -264,7 +267,7 @@ class AiricREPL:
         
         return HTML(" ".join(parts))
     
-    def start(self):
+    async def start(self): # Make start method async
         """
         Start the REPL loop.
         
@@ -285,14 +288,14 @@ class AiricREPL:
                 # Get the prompt text
                 prompt_text = self._get_prompt_text()
                 
-                # Get user input
-                user_input = self.session.prompt(prompt_text)
+                # Get user input asynchronously
+                user_input = await self.session.prompt_async(prompt_text) # Use prompt_async
                 
                 # Process the input
                 if not user_input.strip():
                     continue
                 
-                self._process_input(user_input)
+                await self._process_input(user_input) # Await input processing
                 
             except KeyboardInterrupt:
                 # Handle Ctrl+C
@@ -368,7 +371,7 @@ class AiricREPL:
         
         return HTML(f"<prompt>{prompt}</prompt>")
     
-    def _process_input(self, user_input: str):
+    async def _process_input(self, user_input: str): # Make process_input async
         """
         Process user input, differentiating between commands and text input.
         
@@ -379,10 +382,11 @@ class AiricREPL:
         
         # Check if it's a command (starts with /)
         if stripped_input.startswith('/'):
+            # Commands are typically synchronous, no need to await here unless a command becomes async
             self._handle_command(stripped_input[1:])  # Remove the / prefix
         else:
-            # It's free text for AI
-            self._handle_text_input(stripped_input)
+            # It's free text for AI, handle asynchronously
+            await self._handle_text_input(stripped_input) # Await text input handler
     
     def _handle_command(self, command_input: str):
         """
@@ -403,36 +407,40 @@ class AiricREPL:
             self.print_error(f"Unknown command: {command}")
             self.print_info("Type [bold]/help[/bold] for a list of available commands.")
     
-    def _handle_text_input(self, text: str):
+    async def _handle_text_input(self, text: str): # Make _handle_text_input async
         """
-        Process free text input.
-        
+        Process free text input by sending it to the Google ADK agent via the runner.
+
         Args:
             text: The text to process
         """
+        self.print_info("Sending request to AI agent...") # Indicate processing
+
         try:
-            # Check if we have an active document for context
-            if self.active_document:
-                # Document-focused AI processing
-                self.print_info(f"Processing input in the context of document: {self.active_document.name}")
-                
-                try:
-                    # Process the text with document context
-                    response = self.ai_service.process_document(self.active_document, text)
-                    self.print_markdown(response)
-                except AIServiceError as e:
-                    self.print_error(f"AI processing error: {str(e)}")
-            else:
-                # General AI processing without document context
-                try:
-                    # Process the text without document context
-                    response = self.ai_service.process_text(text)
-                    self.print_markdown(response)
-                except AIServiceError as e:
-                    self.print_error(f"AI processing error: {str(e)}")
-        except Exception as e:
-            self.print_error(f"Error processing input: {str(e)}")
-            self.print_info("Please try again with a different query.")
+            # Context packaging (Task 8.2) - Basic version for now
+            context_info = f"\n\nCurrent Document Context ({self.active_document.name}):\n{self.active_document.body}" if self.active_document else ""
+            full_input = text + context_info
+
+            # Use the user ID defined in core.agent or make it dynamic if needed
+            # For REPL, a single user ID per session is likely fine.
+            # from airic.core.agent import DEFAULT_USER_ID # Optionally import
+            user_id_for_agent = "repl_user" # Or use DEFAULT_USER_ID
+
+            # Call the agent interaction function which uses the runner
+            response_text = await interact_with_agent(
+                user_input=full_input,
+                user_id=user_id_for_agent
+            )
+
+            # History is managed by the SessionService used by the runner in core.agent
+            # No need to manually append here.
+
+            # TODO: Implement Markdown formatting with Rich (Task 8.3)
+            self.print_markdown(response_text)
+
+        except Exception as e: # Catch potential errors from the agent call
+            self.print_error(f"Error interacting with AI agent: {str(e)}")
+            # History management is handled by ADK, no need to pop here
     
     def _handle_exit(self, args: str = ""):
         """
@@ -1078,17 +1086,20 @@ class AiricREPL:
         self.console.print(panel)
 
 
-def start_repl(workspace_path: Optional[Path] = None):
+async def start_repl(workspace_path: Optional[Path] = None): # Make start_repl async
     """
-    Start the Airic REPL.
+    Start the Airic REPL asynchronously.
     
     Args:
         workspace_path: Optional path to an Airic workspace
     """
     repl = AiricREPL(workspace_path)
-    repl.start()
+    await repl.start() # Await the start method
 
 
 if __name__ == "__main__":
-    # When run as a script, start the REPL
-    start_repl() 
+    # When run as a script, start the REPL using asyncio
+    try:
+        asyncio.run(start_repl()) # Use asyncio.run
+    except KeyboardInterrupt:
+        print("\nExiting...") 

@@ -3,6 +3,7 @@ Main CLI command entry points for Airic.
 """
 import os
 import typer
+import asyncio
 from pathlib import Path
 from rich.console import Console
 from rich import print as rprint
@@ -162,7 +163,7 @@ def repl(
     
     # Start the REPL
     try:
-        start_repl(workspace_path)
+        asyncio.run(start_repl(workspace_path))
     except KeyboardInterrupt:
         console.print("\n[yellow]REPL session terminated.[/yellow]")
     except Exception as e:
