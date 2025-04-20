@@ -29,7 +29,7 @@ from prompt_toolkit.document import Document as PromptDocument # Avoid collision
 
 from airic.core.workspace import Workspace, workspace_context, WorkspaceValidationError
 from airic.core.document import Document, DocumentError, find_documents
-from airic.core.agent import interact_with_agent # Import the correct agent interaction function
+from airic.core.agent import AgentInteractor
 
 
 # Custom Completer for /open command
@@ -427,7 +427,8 @@ class AiricREPL:
             user_id_for_agent = "repl_user" # Or use DEFAULT_USER_ID
 
             # Call the agent interaction function which uses the runner
-            response_text = await interact_with_agent(
+            interactor = AgentInteractor(self.active_document.path.as_uri())
+            response_text = await interactor.run_interaction(
                 user_input=full_input,
                 user_id=user_id_for_agent
             )
